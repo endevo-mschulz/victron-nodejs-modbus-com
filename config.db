@@ -1,0 +1,2 @@
+{"modbus":{"master_ip":"192.168.1.95","master_port":502,"connected":false},"_id":"Ac2aN9K1rQf3Y9GR"}
+{"chargeConfig":{"active":true,"date":"2024-01-06T02:00:00.000Z","minSOC":"70"},"_id":"NKEQKAcAypYSrwSO"}
