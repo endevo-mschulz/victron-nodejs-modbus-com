@@ -12,15 +12,17 @@ const Datastore = require ('@seald-io/nedb');
 const schedules = require ('./schedules.js');
 const parser = require ('./parser.js');
 const price = require ('./price.js');
+const weather = require ('./weather.js');
 const {version} = require ('./package.json');
-const db = new Datastore ({filename: 'config.db', autoload: false});
-db.loadDatabase ();
+const helper = require ('./helper.js');
+const config = new Datastore ({filename: 'config.db', autoload: true});
+const datahandler = new Datastore ({filename: 'datahandler.db', autoload: true});
 
 var modbusConnected = false;
 var chargeConfig = null;
 var minSOC = 0;
 
-db.findOne ({_id: 'Ac2aN9K1rQf3Y9GR'}, function (err, doc) {
+config.findOne ({_id: 'Ac2aN9K1rQf3Y9GR'}, function (err, doc) {
   console.log (doc);
   modbus_client_100
     .connectTCP (doc.modbus.master_ip, {
@@ -51,7 +53,7 @@ db.findOne ({_id: 'Ac2aN9K1rQf3Y9GR'}, function (err, doc) {
     });
 });
 
-db.findOne ({_id: 'NKEQKAcAypYSrwSO'}, function (err, doc) {
+config.findOne ({_id: 'NKEQKAcAypYSrwSO'}, function (err, doc) {
   chargeConfig = doc.chargeConfig;
 });
 
@@ -126,6 +128,7 @@ io.on ('connection', function (socket) {
   console.log ('Socket.io connected');
   emitConfig ();
   emitPrice ();
+  emitWeather ();
   io.emit ('version', version);
   socket.on ('chargeConfig', function (data) {
     updateDoc (data);
@@ -134,13 +137,18 @@ io.on ('connection', function (socket) {
 ///////////// SOCKET.io ENDE ////////////////////////////////////////
 
 async function emitConfig () {
-  const docs = await db.findAsync ({});
+  const docs = await config.findAsync ({});
   io.emit ('config', docs);
 }
 
 async function emitPrice () {
   let prices = await price.getPrice ();
   io.emit ('prices', prices);
+}
+
+async function emitWeather () {
+  let rain = await weather.getRain ();
+  io.emit ('rain', rain);
 }
 
 async function updateDoc (data) {
@@ -158,7 +166,7 @@ setInterval (() => {
 }, 900);
 
 async function modbusRunner (data) {
-  const docs = await db.findAsync ({});
+  const docs = await config.findAsync ({});
   if (docs[1].chargeConfig.active == true) {
     let date_now = new Date (); // current time
     let j_datenow = {
@@ -194,11 +202,7 @@ async function modbusRunner (data) {
   }
 }
 
-setInterval (() => {
-  priceRunnerToday ();
-  priceRunnerTomorrow ();
-}, 10000);
-
+//TODO: Funktion muss umgebaut werden, damit sie nur einmal am Tag ausgeführt wird
 async function priceRunnerToday () {
   let prices = await price.getPrice ();
   if (prices.length == 0) {
@@ -215,7 +219,7 @@ async function priceRunnerToday () {
 
   for (element in prices) {
     let date_target = new Date (prices[element].date * 1000);
-    j_datetarget = {
+    let j_datetarget = {
       day: date_target.getDay (),
       month: date_target.getMonth () + 1,
       year: date_target.getFullYear (),
@@ -227,98 +231,16 @@ async function priceRunnerToday () {
       j_datenow.month == j_datetarget.month &&
       j_datenow.year == j_datetarget.year
     ) {
+      console.log ('BREAK');
       break;
     } else {
+      console.log ('GATHER');
       price.gatherPrice (dateBuilder ('today')[0], dateBuilder ('today')[1]);
     }
   }
 }
 
-async function priceRunnerTomorrow () {
-  let prices = await price.getPrice ();
-  let date_now = new Date ();
-  let j_datenow = {
-    day: date_now.getDay (),
-    month: date_now.getMonth () + 1,
-    year: date_now.getFullYear (),
-    hours: date_now.getHours (),
-    mins: date_now.getMinutes (),
-  };
-
-  if (j_datenow.hours >= 13 && j_datenow.mins >= 2) {
-    for (element in prices) {
-      let date_target = new Date (prices[element].date * 1000);
-      j_datetarget = {
-        day: date_target.getDay (),
-        month: date_target.getMonth () + 1,
-        year: date_target.getFullYear (),
-        hours: date_target.getHours (),
-        mins: date_target.getMinutes (),
-      };
-      if (
-        j_datenow.day + 1 == j_datetarget.day + 1 &&
-        j_datenow.month == j_datetarget.month &&
-        j_datenow.year == j_datetarget.year
-      ) {
-        break;
-      } else {
-        price.gatherPrice (
-          dateBuilder ('tomorrow')[0],
-          dateBuilder ('tomorrow')[1]
-        );
-      }
-    }
-  }
+async function gatherRain() {
+  let rain = await weather.gatherRain();
 }
 
-function dateBuilder (date) {
-  let date_now = new Date ();
-  let j_datenow = {
-    day: date_now.getDay (),
-    month: date_now.getMonth () + 1,
-    year: date_now.getFullYear (),
-    hours: date_now.getHours (),
-    mins: date_now.getMinutes (),
-  };
-  let today_start =
-    j_datenow.year +
-    '-' +
-    ('0' + j_datenow.month).slice (-2) +
-    '-' +
-    ('0' + j_datenow.day).slice (-2) +
-    'T' +
-    '00:00';
-  let today_end =
-    j_datenow.year +
-    '-' +
-    ('0' + j_datenow.month).slice (-2) +
-    '-' +
-    ('0' + j_datenow.day).slice (-2) +
-    'T' +
-    '23:45';
-  let tomorrow_start =
-    j_datenow.year +
-    '-' +
-    ('0' + j_datenow.month).slice (-2) +
-    '-' +
-    ('0' + (j_datenow.day + 1)).slice (-2) +
-    'T' +
-    '00:00';
-  let tomorrow_end =
-    j_datenow.year +
-    '-' +
-    ('0' + j_datenow.month).slice (-2) +
-    '-' +
-    ('0' + (j_datenow.day + 1)).slice (-2) +
-    'T' +
-    '23:45';
-
-  switch (date) {
-    case 'today':
-      return [today_start, today_end];
-      break;
-    case 'tomorrow':
-      return [tomorrow_start, tomorrow_end];
-      break;
-  }
-}

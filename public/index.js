@@ -1,9 +1,12 @@
 var socket = io();
 var chargeConfig = null;
-var _labels = [];
-var _data = [];
+var prices_labels = [];
+var prices_data = [];
+var rain_labels = [];
+var rain_data = [];
 
-const ctx = document.getElementById('myChart');
+const prices = document.getElementById('prices');
+const rain = document.getElementById('rain');
 
 $('#socDateActive').on('click', function () {
   console.log($('#socDateActive').prop('checked'));
@@ -45,23 +48,23 @@ socket.on('prices', function (data) {
   $('#prices').html('');
   for (i = data.length - 1; i >= 0; i--) {
     let date = new Date(data[i].date * 1000);
-    _labels.push(
+    prices_labels.push(
       date.toLocaleString('de-DE', {
         timeZone: 'Europe/Berlin',
         dateStyle: 'short',
         timeStyle: 'short',
       })
     );
-    _data.push(data[i].price);
+    prices_data.push(data[i].price);
   }
-  new Chart(ctx, {
+  new Chart(prices, {
     type: 'line',
     data: {
-      labels: _labels,
+      labels: prices_labels,
       datasets: [
         {
           label: 'EUR/MWh',
-          data: _data,
+          data: prices_data,
           borderWidth: 1,
         },
       ],
@@ -77,6 +80,45 @@ socket.on('prices', function (data) {
     },
   });
 });
+
+socket.on('rain', function (data) {
+  $('#tbl_rain').html('');
+  console.log(data)
+  for (i = data.length - 1; i >= 0; i--) {
+    let date = new Date(data[i].date);
+    rain_labels.push(
+      date.toLocaleString('de-DE', {
+        timeZone: 'Europe/Berlin',
+        dateStyle: 'short',
+        timeStyle: 'short',
+      })
+    );
+    rain_data.push(data[i].rain);
+  }
+  new Chart(rain, {
+    type: 'bar',
+    data: {
+      labels: rain_labels,
+      datasets: [
+        {
+          label: 'mm',
+          data: rain_data,
+          borderWidth: 1,
+        },
+      ],
+    },
+    options: {
+      scales: {
+        y: {
+          beginAtZero: true,
+        },
+      },
+      responsive: true,
+      maintainAspectRatio: false,
+    },
+  });
+});
+
 
 setInterval(function () {
   dtnow = new Date();

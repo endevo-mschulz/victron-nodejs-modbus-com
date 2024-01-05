@@ -54,11 +54,11 @@
                                 <td><span id="td_state">not connected</span></td>
                             </tr>
                             <tr>
-                                <td style="width: 200px;">SOC: </td>
+                                <td style="width: 200px;">SoC: </td>
                                 <td><span id="td_soc">not connected</span></td>
                             </tr>
                             <tr>
-                                <td style="width: 200px;">Minimum SOC: </td>
+                                <td style="width: 200px;">Minimum SoC: </td>
                                 <td><span id="td_minsoc">not connected</span></td>
                             </tr>
                             <tr>
@@ -72,13 +72,13 @@
             <div class="col-md-6">
                 <div class="card" style="height: 240px;">
                     <div class="card-header" style="height: 50px;">
-                        <h3>Minimum SOC Planer</h3>
+                        <h3>Minimum SoC Planer</h3>
                     </div>
                     <div class="card-body">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" value="" id="socDateActive">
                             <label class="form-check-label" for="flexCheckDefault">
-                                SOC Termin aktiv
+                                SoC Termin aktiv
                             </label>
                         </div>
                         <p>Termin: <span id="chargeTime">keiner</span></p>
@@ -88,7 +88,7 @@
                                 <span id="datetoload">Termin ändern</span>
                             </button>
                         </div>
-                        <div style="margin-top: 10px;"><label for="minSOCslider" class="form-label">Min SOC: <span id="lblMinSOC"></span></label>
+                        <div style="margin-top: 10px;"><label for="minSOCslider" class="form-label">Min SoC: <span id="lblMinSOC"></span></label>
                             <input type="range" class="form-range" min="0" max="100" step="5" id="minSOCslider">
                         </div>
                     </div>
@@ -96,18 +96,40 @@
             </div>
         </div>
         <div class="row" style="margin-top: 20px;">
-            <div class="col-md-12">
+            <div class="col-md-6">
                 <div class="card">
                     <div class="card-header">
                         <h3>Strompreise</h3>
                     </div>
                     <div class="card-body">
                         <div style="height: 400px;">
-                            <canvas id="myChart"></canvas>
+                            <canvas id="prices"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header row">
+                        <div class="col-sm-6"><h3>Niederschlag</h3></div>
+                        <div class="col-md-6">
+
+                            <input class="form-check-input" type="checkbox" value="" id="socDateActive">
+                            <label class="form-check-label" for="flexCheckDefault">
+                                SoC auf 90% sichern wenn 10mm Niederschlag in 24h
+                            </label>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div style="height: 400px;">
+                            <canvas id="rain"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row" style="margin-top: 20px; padding-bottom: 40px;">
+
         </div>
     </div>
 
