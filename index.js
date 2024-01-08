@@ -18,79 +18,62 @@ const helper = require ('./helper.js');
 const config = new Datastore ({filename: 'config.db', autoload: true});
 const datahandler = new Datastore ({filename: 'datahandler.db', autoload: true});
 
+
+///////// GLOBAL VARRS ///////////////////////////////////////////////
 var modbusConnected = false;
 var chargeConfig = null;
 var minSOC = 0;
-
-config.findOne ({_id: 'Ac2aN9K1rQf3Y9GR'}, function (err, doc) {
-  console.log (doc);
-  modbus_client_100
-    .connectTCP (doc.modbus.master_ip, {
-      port: doc.modbus.master_port,
-    })
-    .then (function () {
-      console.log ('Connected to VE.Bus');
-      modbusConnected = true;
-      modbus_client_100.setID (100);
-      modbus_client_100.setTimeout (2000);
-      schedules.setModbusClient (modbus_client_100);
-    })
-    .catch (function (e) {
-      console.log (e.message);
-    });
-
-  modbus_client_239
-    .connectTCP (doc.modbus.master_ip, {
-      port: doc.modbus.master_port,
-    })
-    .then (function () {
-      console.log ('Connected to VE.Bus');
-      modbus_client_239.setID (239);
-      modbus_client_239.setTimeout (1000);
-    })
-    .catch (function (e) {
-      console.log (e.message);
-    });
-});
-
-config.findOne ({_id: 'NKEQKAcAypYSrwSO'}, function (err, doc) {
-  chargeConfig = doc.chargeConfig;
-});
-
 const modbus_registers = {
   ve_bus_state_of_charge: 30,
   ve_bus_state: 31,
   ve_system_minsoc: 2901,
 };
-
 var multiplus_data = {
   state: null,
   soc: null,
 };
+///////////////////////////////////////////////////////////////////////
 
-function modbus_gatherer () {
-  modbus_client_239.readInputRegisters (
-    modbus_registers.ve_bus_state,
-    1,
-    function (err, data) {
-      multiplus_data.state = parser.vebus_state (data.data[0]);
-    }
-  );
-  modbus_client_239.readInputRegisters (
-    modbus_registers.ve_bus_state_of_charge,
-    1,
-    function (err, data) {
-      multiplus_data.soc = parser.vebus_state_of_charge (data.data[0]);
-    }
-  );
-  io.emit ('multiplus_data', multiplus_data);
+///////////////// Startups ///////////////////////////////////////////
+startup ();
+function startup() {
+  config.findOne ({_id: 'Ac2aN9K1rQf3Y9GR'}, function (err, doc) {
+    console.log (doc);
+    modbus_client_100
+      .connectTCP (doc.modbus.master_ip, {
+        port: doc.modbus.master_port,
+      })
+      .then (function () {
+        console.log ('Connected to VE.Bus');
+        modbusConnected = true;
+        modbus_client_100.setID (100);
+        modbus_client_100.setTimeout (2000);
+        schedules.setModbusClient (modbus_client_100);
+      })
+      .catch (function (e) {
+        console.log (e.message);
+      });
+  
+    modbus_client_239
+      .connectTCP (doc.modbus.master_ip, {
+        port: doc.modbus.master_port,
+      })
+      .then (function () {
+        console.log ('Connected to VE.Bus');
+        modbus_client_239.setID (239);
+        modbus_client_239.setTimeout (1000);
+      })
+      .catch (function (e) {
+        console.log (e.message);
+      });
+  });
+  
+  config.findOne ({_id: 'NKEQKAcAypYSrwSO'}, function (err, doc) {
+    chargeConfig = doc.chargeConfig;
+  });
+
 }
-
-interval_modbus_gatherer = setInterval (() => {
-  if (modbusConnected == true) {
-    modbus_gatherer ();
-  }
-}, 2000);
+///////////////////////////////////////////////////////////////////////
 
 //////////////// EXPRESS ///////////////////////////////////////////////
 app.use (express.static (__dirname + '/public'));
@@ -123,6 +106,7 @@ server.listen (8080, () => {
 });
 //////////////// EXPRESS ENDE///////////////////////////////////////////
 
+
 /////////////// SOCKET.io /////////////////////////////////////////////
 io.on ('connection', function (socket) {
   console.log ('Socket.io connected');
@@ -134,8 +118,10 @@ io.on ('connection', function (socket) {
     updateDoc (data);
   });
 });
-///////////// SOCKET.io ENDE ////////////////////////////////////////
+///////////// SOCKET.io END ////////////////////////////////////////
 
+
+///////////////// functions to send data to client ///////////////////
 async function emitConfig () {
   const docs = await config.findAsync ({});
   io.emit ('config', docs);
@@ -150,7 +136,10 @@ async function emitWeather () {
   let rain = await weather.getRain ();
   io.emit ('rain', rain);
 }
+///////////////// functions to send data to client END //////////////
 
+
+///////////////// database functions //////////////////////////
 async function updateDoc (data) {
   let active = data.active;
   let date = data.date;
@@ -160,10 +149,33 @@ async function updateDoc (data) {
     {}
   );
 }
+///////////////// database functions END //////////////////////
 
-setInterval (() => {
-  modbusRunner ();
-}, 900);
+
+///////////////// modbus functions //////////////////////////
+function modbus_gatherer () {
+  modbus_client_239.readInputRegisters (
+    modbus_registers.ve_bus_state,
+    1,
+    function (err, data) {
+      multiplus_data.state = parser.vebus_state (data.data[0]);
+    }
+  );
+  modbus_client_239.readInputRegisters (
+    modbus_registers.ve_bus_state_of_charge,
+    1,
+    function (err, data) {
+      multiplus_data.soc = parser.vebus_state_of_charge (data.data[0]);
+    }
+  );
+  io.emit ('multiplus_data', multiplus_data);
+}
+
+interval_modbus_gatherer = setInterval (() => {
+  if (modbusConnected == true) {
+    modbus_gatherer ();
+  }
+}, 2000);
 
 async function modbusRunner (data) {
   const docs = await config.findAsync ({});
@@ -201,8 +213,11 @@ async function modbusRunner (data) {
     }
   }
 }
+///////////////// modbus functions END //////////////////////
 
-//TODO: Funktion muss umgebaut werden, damit sie nur einmal am Tag ausgeführt wird
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+//TODO AREA: Funktion priceRunnerToday muss umgebaut werden, damit sie nur einmal am Tag ausgeführt wird
 async function priceRunnerToday () {
   let prices = await price.getPrice ();
   if (prices.length == 0) {
@@ -240,6 +255,7 @@ async function priceRunnerToday () {
   }
 }
 
+// TODO AREA: Funktion priceRunnerTomorrow muss wie priceRunnerToday umgebaut werden
 async function gatherRain() {
   let rain = await weather.gatherRain();
 }
